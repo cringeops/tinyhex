@@ -5,8 +5,6 @@
 
 #define COL            4
 #define DEF_COL_NUM    COL * 6
-#define ON             1
-#define OFF            0
 
 #define ARG_HELP       "-h"
 #define ARG_ASCII      "-C"
@@ -17,7 +15,7 @@ int printerr(int);
 void print_dump(char *);
 
 int *pname;
-int ascii = OFF;
+int ascii = 0;
 int col_num = DEF_COL_NUM;
 
 int help(void) {
@@ -26,7 +24,7 @@ int help(void) {
     "dump file as hex\n"
     "flags:\n"
     "\t-h - show this help\n"
-    "\t-cN - columns, i.e. -c4\n"
+    "\t-c N - columns\n"
     "\t-C - print ASCII\n",
     pname
   );
@@ -40,8 +38,8 @@ int printerr(int code) {
 
 void print_dump(char *buf) {
   static unsigned long row_count;
-  printf("%08x: ", row_count+=COL_NUM);
-  for (int i = 0; i < COL_NUM; i++) {
+  printf("%08x: ", row_count+=col_num);
+  for (int i = 0; i < col_num; i++) {
     if (i && !(i % 4))
       printf(" ");
     printf("%02x ", (unsigned char) buf[i]);
@@ -49,7 +47,7 @@ void print_dump(char *buf) {
 
   if (ascii) {
     printf(" | ");
-    for (int i = 0; i < COL_NUM; i++)
+    for (int i = 0; i < col_num; i++)
       printf("%c", (unsigned char) (isprint(buf[i]) && (buf[i] != '\n') ? buf[i] : ' '));
     printf("%2c", '|');
   }
@@ -58,6 +56,9 @@ void print_dump(char *buf) {
 }
 
 int dump(const char *fname) {
+  if (fname == NULL)
+    return printerr(EINVAL);
+
   FILE *fp = fopen(fname, "r");
   if (fp == NULL)
     return printerr(errno);
@@ -68,8 +69,8 @@ int dump(const char *fname) {
   long fsz = ftell(fp);
   rewind(fp);
 
-  for (long pos = 0; pos < fsz; pos+=COL_NUM) {
-    fread(buf, COL_NUM, 1, fp);
+  for (long pos = 0; pos < fsz; pos+=col_num) {
+    fread(buf, col_num, 1, fp);
     print_dump(buf);
   }
 
@@ -93,7 +94,7 @@ int main(int argc, int *argv[]) {
   if (!strcmp(flag, ARG_HELP))
     return help();
   else if (!strcmp(flag, ARG_ASCII))
-    ascii = ON;
+    ascii = 1;
   else {
     printf("%s: unknown flag %s\n", pname, flag);
     return 1;
