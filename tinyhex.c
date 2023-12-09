@@ -1,102 +1,69 @@
 #include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
-#define COL            4
-#define DEF_COL_NUM    COL * 6
-#define ON             1
-#define OFF            0
-
-#define ARG_HELP       "-h"
-#define ARG_ASCII      "-C"
-
-int help(void);
-int dump(const char *);
-int printerr(int);
-void print_dump(char *);
+#include "tinyhex.h"
+#include "dump.c"
+#include "print.c"
 
 int *pname;
-int ascii = OFF;
-int col_num = DEF_COL_NUM;
-
-int help(void) {
-  printf(
-    "%s: [FLAGS] FILENAME\n"
-    "dump file as hex\n"
-    "flags:\n"
-    "\t-h - show this help\n"
-    "\t-cN - columns, i.e. -c4\n"
-    "\t-C - print ASCII\n",
-    pname
-  );
-  return 0;
-}
-
-int printerr(int code) {
-  printf("%s: error: %s\n", pname, strerror(code));
-  return code;
-}
-
-void print_dump(char *buf) {
-  static unsigned long row_count;
-  printf("%08x: ", row_count+=COL_NUM);
-  for (int i = 0; i < COL_NUM; i++) {
-    if (i && !(i % 4))
-      printf(" ");
-    printf("%02x ", (unsigned char) buf[i]);
-  }
-
-  if (ascii) {
-    printf(" | ");
-    for (int i = 0; i < COL_NUM; i++)
-      printf("%c", (unsigned char) (isprint(buf[i]) && (buf[i] != '\n') ? buf[i] : ' '));
-    printf("%2c", '|');
-  }
-
-  printf("\n");
-}
-
-int dump(const char *fname) {
-  FILE *fp = fopen(fname, "r");
-  if (fp == NULL)
-    return printerr(errno);
-
-  char buf[24];
-
-  fseek(fp, 0L, SEEK_END);
-  long fsz = ftell(fp);
-  rewind(fp);
-
-  for (long pos = 0; pos < fsz; pos+=COL_NUM) {
-    fread(buf, COL_NUM, 1, fp);
-    print_dump(buf);
-  }
-
-  fclose(fp);
-  return 0;
-}
+int ascii = 0;
+int col_num = DEF_COL_NUM * DEF_COL_WIDTH;
+int col_width = DEF_COL_WIDTH;
+int offset = 1;
+const char *format = HEX_FORMAT;
 
 int main(int argc, int *argv[]) {
   pname = argv[0];
-  char *fname = (char*) argv[argc - 1];
-  char *flag = NULL;
-  if (argc == 3)
-    flag = (char*) argv[1];
-  else if (argc < 2 || !strcmp(fname, ARG_HELP))
-    return help();
+  char *fname = NULL;
 
-  // skip unnecessary branching
-  if (!flag)
-    return dump(fname);
+  for (*++argv; --argc; *++argv) {
+    if (((char*) *argv)[0] != '-') {
+      fname = (char*) *argv;
+      break;
+    }
 
-  if (!strcmp(flag, ARG_HELP))
-    return help();
-  else if (!strcmp(flag, ARG_ASCII))
-    ascii = ON;
-  else {
-    printf("%s: unknown flag %s\n", pname, flag);
-    return 1;
+    switch (((char*) *argv)[1]) {
+      case ARG_HELP:
+        return help(0);
+      case ARG_ASCII:
+        ascii = 1;
+        break;
+      case ARG_OFFSET:
+        offset = 0;
+        break;
+      case ARG_OCTAL:
+        format = OCT_FORMAT;
+        break;
+      case ARG_BINARY:
+        format = BIN_FORMAT;
+        col_num = col_width;  // narrower view by default
+        break;
+      case ARG_COL:
+        if (argc < 2)
+          return help(EINVAL);
+        *++argv;
+        col_num = atoi((char*) *argv) * col_width;
+        if (!col_num)
+          return help(EINVAL);
+        break;
+      case ARG_WIDTH:
+        if (argc < 2)
+          return help(EINVAL);
+        *++argv;
+        col_width = atoi((char*) *argv);
+        if (!col_width)
+          return help(EINVAL);
+        break;
+      default:
+        return printerr(EINVAL, strcat((char*) *argv, " - unknown argument"));
+    }
   }
+
+  if (fname == NULL)
+    return help(EINVAL);
+
   return dump(fname);
 }
