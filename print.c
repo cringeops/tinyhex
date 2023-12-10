@@ -37,7 +37,7 @@ void print_dump(char *buf) {
     printf("%08x: ", row_count+=col_num);
   for (int i = 0; i < col_num; i++) {
     if (i && !(i % col_width))
-      printf(" ");
+      putchar(' ');
     printf(format, (unsigned char) buf[i]);
   }
 
