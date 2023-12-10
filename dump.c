@@ -7,16 +7,15 @@ int dump(const char *fname) {
   if (fp == NULL)
     return printerr(errno, 0);
 
-  char buf[col_num];
+  char buf[DEF_BUF_SIZE] = {0};
+	setvbuf(stdout, 0, _IOFBF, 0);
 
-  fseek(fp, 0L, SEEK_END);
-  long fsz = ftell(fp);
-  rewind(fp);
-
-  for (long pos = 0; pos < fsz; pos+=col_num) {
-    fread(buf, col_num, 1, fp);
+	int chunk_sz = DEF_BUF_SIZE, pos = 0;
+	while (!feof(fp)) {
+		chunk_sz=DEF_BUF_SIZE;
+    fread(buf, chunk_sz, 1, fp);
     print_dump(buf);
-  }
+	}
 
   fclose(fp);
   return 0;

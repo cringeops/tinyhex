@@ -1,3 +1,4 @@
+#define DEF_BUF_SIZE   24
 #define DEF_COL_WIDTH  4
 #define DEF_COL_NUM    2
 #define HEX_FORMAT     "%02x "
